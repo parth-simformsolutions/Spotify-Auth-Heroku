@@ -1,4 +1,4 @@
-from flask import Flask, request
+from flask import Flask, request, abort, Response, redirect
 import os
 import requests
 import base64
@@ -14,7 +14,6 @@ def homepage():
     CALLBACK_URL = os.environ.get('CALLBACK_URL')
     REDIRECT_URL = os.environ.get('REDIRECT_URL')
 
-    print(CLIENT_ID)
     SPOTIFY_TOKEN_URL = "https://accounts.spotify.com/api/token"
 
     auth_token = request.args.get('code')
@@ -30,22 +29,14 @@ def homepage():
     headers = {"Authorization": "Basic {}".format(base64encoded)}
     post_request = requests.post(SPOTIFY_TOKEN_URL, data=code_payload, headers=headers)
 
-    response_data = json.loads(post_request.text)
+    response_data = json.loads(post_request.content)
+
     if 'error' in response_data:
-        return {
-            'statusCode': 400,
-            'body': json.dumps(response_data)
-        }
+        abort(400)
+        abort(Response(response_data['error_description']))
 
-
-    access_token = response_data["access_token"]
-    return {
-        'statusCode': 301,
-        'body': None,
-        'headers': {
-            'Location': REDIRECT_URL + access_token
-        }
-    }
+    
+    return redirect('{redirect}/{access}'.format(redirect=REDIRECT_URL, access=response_data['access_token']), code=302)
 
 if __name__ == '__main__':
     app.run(debug=True, use_reloader=True)
